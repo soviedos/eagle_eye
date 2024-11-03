@@ -27,23 +27,23 @@ Notes:
 """
 
 
-
-from data.image_loader import ImageLoader
-from business.circle_detector import CircleDetector
 from services.image_processing_service import ImageProcessingService
+from business.circle_detector import CircleDetector
 from ui.image_adjustment import ImageAdjustmentUI
 
 def main():
-    image_directory = 'Fotos/Fotos Sergio'
-    image_extension = '.jpg'
-    output_directory = 'Fotos/Generadas/'
-
-    image_loader = ImageLoader(image_directory, image_extension)
+    # Crear una instancia del detector de círculos
     circle_detector = CircleDetector()
-    processing_service = ImageProcessingService(image_loader, circle_detector)
+
+    # Pasar el detector de círculos al servicio de procesamiento de imágenes
+    processing_service = ImageProcessingService(circle_detector)
+
+    # Crear la interfaz de ajuste de imagen
     adjustment_ui = ImageAdjustmentUI(processing_service)
 
-    adjustment_ui.setup_adjustment_interface()
+    # Iniciar la interfaz
+    adjustment_ui.root.mainloop()
 
 if __name__ == "__main__":
     main()
+
