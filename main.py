@@ -29,14 +29,18 @@ Notes:
 
 from services.image_processing_service import ImageProcessingService
 from business.circle_detector import CircleDetector
+from business.robot_detector import RobotDetector
 from ui.image_adjustment import ImageAdjustmentUI
 
 def main():
     # Crear una instancia del detector de círculos
     circle_detector = CircleDetector()
 
+    #Crear una instancia del detector de robots
+    robot_detector = RobotDetector()
+
     # Pasar el detector de círculos al servicio de procesamiento de imágenes
-    processing_service = ImageProcessingService(circle_detector)
+    processing_service = ImageProcessingService(circle_detector, robot_detector)
 
     # Crear la interfaz de ajuste de imagen
     adjustment_ui = ImageAdjustmentUI(processing_service)

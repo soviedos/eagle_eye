@@ -5,8 +5,8 @@ class CircleDetector:
     def __init__(self):
         self.param1 = 50
         self.param2 = 30
-        self.min_radius = 0
-        self.max_radius = 0
+        self.min_radius = 120
+        self.max_radius = 135
 
     def detect(self, image):
         # Convertir la imagen a escala de grises
@@ -39,7 +39,7 @@ class CircleDetector:
                 mean_intensity = cv2.mean(gray, mask=mask)[0]  # Intensidad media dentro del círculo
 
                 # Considerar solo los círculos negros (intensidad baja)
-                if mean_intensity < 60:  # Ajusta el umbral si es necesario para mejorar la precisión
+                if mean_intensity < 70:  # Ajusta el umbral si es necesario para mejorar la precisión
                     black_circles.append((x, y, r))
 
             return black_circles

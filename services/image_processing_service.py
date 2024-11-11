@@ -3,12 +3,13 @@ import cv2
 import numpy as np
 
 class ImageProcessingService:
-    def __init__(self, circle_detector):
+    def __init__(self, circle_detector, robot_detector):
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             raise Exception("Error: No se pudo abrir la cámara.")
 
         self.circle_detector = circle_detector
+        self.robot_detector = robot_detector
 
     def get_frame(self):
         ret, frame = self.cap.read()
@@ -35,7 +36,11 @@ class ImageProcessingService:
 
     def detect_circles(self, image):
         return self.circle_detector.detect(image)
+    
+    def detect_robots(self, image):
+        return self.robot_detector.detect(image)
 
     def release(self):
         if self.cap is not None:
+            self.cap.release()
             self.cap.release()
