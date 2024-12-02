@@ -1,4 +1,5 @@
 import tkinter as tk
+import numpy as np
 from tkinter import Button, Frame, Label
 from services.image_processing_service import ImageProcessingService
 from PIL import Image, ImageTk
@@ -134,6 +135,7 @@ class ImageAdjustmentUI:
 
         circles = self.processing_service.detect_circles(frame)
         global radius
+        roi_circle = None  # Initialize roi_circle to ensure it is defined
 
         if circles is not None and len(circles) > 0:
             for (x, y, radius) in circles:
@@ -141,15 +143,30 @@ class ImageAdjustmentUI:
                 cv2.circle(frame, (x, y), 2, (0, 0, 255), 3)
                 cv2.putText(frame, f"Radio: {radius}px", (x - 50, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 self.distance_pixels_label.config(text=f"Distancia en píxeles: {radius}")
-
+                # Extraer la región de interés (ROI) dentro del círculo
+                x1, y1 = max(0, x - radius), max(0, y - radius)
+                x2, y2 = min(frame.shape[1], x + radius), min(frame.shape[0], y + radius)
+                roi_circle = frame[y1:y2, x1:x2]
+        
         # Detectar robots en el cuadro
-        rectangles = self.processing_service.detect_robots(frame)
-        for (x, y, w, h) in rectangles:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            cv2.putText(frame, "Robot", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+        if roi_circle is not None:
+            rectangles = self.processing_service.detect_robots(frame)
+            for (x, y, w, h, angle) in rectangles:
+                # Crear una caja delimitadora rotada
+                rect = ((x + w / 2, y + h / 2), (w, h), angle)
+                box = cv2.boxPoints(rect)
+                box = np.int32(box)
+                cv2.drawContours(frame, [box], 0, (255, 0, 0), 2)
+                cv2.putText(roi_circle, "Robot", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+        # Contar la cantidad de robots dentro del roi_circle
+        robot_count = 0
+        if roi_circle is not None:
+            for (x, y, w, h, angle) in rectangles:
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    robot_count += 1
 
-            # Actualizar el ROI dinámicamente en función del objeto detectado
-            self.roi_rect = (x, y, w, h)
+        # Mostrar la cantidad de robots en la interfaz
+        self.distance_pixels_label.config(text=f"Distancia en píxeles: {radius} | Robots detectados: {robot_count-1}")
         
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
