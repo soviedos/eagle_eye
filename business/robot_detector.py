@@ -1,46 +1,67 @@
+import os
+import torch
+from pathlib import Path
+import yaml
 import cv2
+import subprocess
+import warnings
 import numpy as np
-from ui.image_adjustment import ImageAdjustmentUI
+warnings.filterwarnings("ignore", category=FutureWarning)
 
+# Ruta del directorio de YOLOv5
+yolov5_path = Path('./yolov5')
+if not yolov5_path.exists():
+    # Clonar YOLOv5 si no se encuentra
+    print(f"Clonando YOLOv5 en {yolov5_path}...")
+    subprocess.run(['git', 'clone', 'https://github.com/ultralytics/yolov5.git', str(yolov5_path)])
 class RobotDetector:
-    def __init__(self, dojo_diameter_cm=80):
-        self.dojo_diameter_cm = dojo_diameter_cm
-        self.px_to_cm_ratio_value = None
+    def __init__(self):
+        # Ruta del modelo entrenado
+        self.model_path = Path('./yolov5/runs/train/eagle_eye_training/weights/best.pt')
+        self.model = self.load_model()
+        if self.model is None:
+            print("Error: El modelo no está cargado.")
+        print("RobotDetector initialized.")
 
-    def px_to_cm_ratio(self):
-        # Calcular la relación de conversión píxeles a centímetros
-        dojo_radius_cm = self.dojo_diameter_cm / 2
-        self.px_to_cm_ratio_value = dojo_radius_cm / ImageAdjustmentUI.radius_value(self)
-        return self.px_to_cm_ratio_value
+    def load_model(self):
+        if not self.model_path.exists():
+            print(f"Error: No se encontró el modelo entrenado en {self.model_path}. Por favor, asegúrate de que el modelo esté entrenado y la ruta sea correcta.")
+            return None
+        else:
+            print("Cargando modelo entrenado...")
+
+        # Cargar el modelo entrenado
+        try:
+            model = torch.hub.load('./yolov5', 'custom', path=str(self.model_path), source='local')
+            return model
+        except Exception as e:
+            print(f"Error al cargar el modelo: {e}")
+            return None
 
     def detect(self, image):
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
+        if self.model is None:
+            print("Error: El modelo no está cargado.")
+            return []
+        else:
+            print("Realizando detección de robots...")  
 
-        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # Realizar la detección
+        results = self.model(image)
 
-        radio_value = self.px_to_cm_ratio()
-
+        # Filtrar detecciones por umbral de confianza
+        threshold = 0.7
+        detections = results.xyxy[0].cpu().numpy()  # Obtener las detecciones en formato xyxy
+        filtered_detections = [d for d in detections if d[4] >= threshold]  # Filtrar por umbral de confianza
+        num_robots = len(filtered_detections)
+        print(f"Número de robots detectados: {num_robots}")
+        
+        # Preparar la información para dibujar los rectángulos
         rectangles = []
-
-        for contour in contours:
-            # Aproximar el contorno a un polígono
-            approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
-            if len(approx) == 4:
-                # Obtener el rectángulo delimitador del polígono
-                rect = cv2.minAreaRect(approx)
-                box = cv2.boxPoints(rect)
-                box = np.int32(box)
-                x, y, w, h = cv2.boundingRect(box)
-                aspect_ratio = w / float(h)
-                if 0.6 <= aspect_ratio <= 1.4:  # Verificar si el contorno es aproximadamente un cuadrado
-                    # Convertir las dimensiones del rectángulo de píxeles a centímetros
-                    width_cm = w * radio_value
-                    height_cm = h * radio_value
-                    # Verificar si las dimensiones están dentro del rango deseado
-                    if 6 <= width_cm <= 14 and 6 <= height_cm <= 14:
-                        angle = rect[2]
-                        rectangles.append((x, y, w, h, angle))
+        for detection in filtered_detections:
+            x1, y1, x2, y2, confidence, class_id = detection
+            rectangles.append((int(x1), int(y1), int(x2 - x1), int(y2 - y1), float(confidence), int(class_id)))
 
         return rectangles
+        
+
+    

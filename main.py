@@ -41,7 +41,7 @@ def main():
 
     # Pasar el detector de círculos al servicio de procesamiento de imágenes
     processing_service = ImageProcessingService(circle_detector, robot_detector)
-
+    
     # Crear la interfaz de ajuste de imagen
     adjustment_ui = ImageAdjustmentUI(processing_service)
 

@@ -7,9 +7,8 @@ class ImageProcessingService:
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             raise Exception("Error: No se pudo abrir la cámara.")
-
-        self.circle_detector = circle_detector
         self.robot_detector = robot_detector
+        self.circle_detector = circle_detector
 
     def get_frame(self):
         ret, frame = self.cap.read()
@@ -38,6 +37,8 @@ class ImageProcessingService:
         return self.circle_detector.detect(image)
     
     def detect_robots(self, image):
+        # Implement robot detection logic using self.robot_detector
+        print("Detecting robots...step 1")
         return self.robot_detector.detect(image)
 
     def release(self):

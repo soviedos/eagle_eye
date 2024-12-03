@@ -3,7 +3,7 @@ import numpy as np
 from tkinter import Button, Frame, Label
 from services.image_processing_service import ImageProcessingService
 from PIL import Image, ImageTk
-#from business.robot_detector import RobotDetector
+from business.robot_detector import RobotDetector
 import cv2
 from PIL import Image, ImageDraw, ImageTk
 
@@ -78,7 +78,6 @@ class FuturisticScale(tk.Canvas):
 class ImageAdjustmentUI:
     def __init__(self, processing_service: ImageProcessingService):
         self.processing_service = processing_service
-        #self.robot_detector = RobotDetector()
         self.roi_rect = (0, 0, 100, 100)  # Example values, adjust as needed
         self.root = tk.Tk()
         self.root.title("Eagle Eye Software")
@@ -138,35 +137,28 @@ class ImageAdjustmentUI:
         roi_circle = None  # Initialize roi_circle to ensure it is defined
 
         if circles is not None and len(circles) > 0:
-            for (x, y, radius) in circles:
-                cv2.circle(frame, (x, y), radius, (0, 255, 0), 2)
-                cv2.circle(frame, (x, y), 2, (0, 0, 255), 3)
-                cv2.putText(frame, f"Radio: {radius}px", (x - 50, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            for (circle_x, circle_y, radius) in circles:
+                cv2.circle(frame, (circle_x, circle_y), radius, (0, 255, 0), 2)
+                cv2.circle(frame, (circle_x, circle_y), 2, (0, 0, 255), 3)
                 self.distance_pixels_label.config(text=f"Distancia en píxeles: {radius}")
                 # Extraer la región de interés (ROI) dentro del círculo
-                x1, y1 = max(0, x - radius), max(0, y - radius)
-                x2, y2 = min(frame.shape[1], x + radius), min(frame.shape[0], y + radius)
+                x1, y1 = max(0, circle_x - radius), max(0, circle_y - radius)
+                x2, y2 = min(frame.shape[1], circle_x + radius), min(frame.shape[0], circle_y + radius)
                 roi_circle = frame[y1:y2, x1:x2]
-        
-        # Detectar robots en el cuadro
-        if roi_circle is not None:
-            rectangles = self.processing_service.detect_robots(frame)
-            for (x, y, w, h, angle) in rectangles:
-                # Crear una caja delimitadora rotada
-                rect = ((x + w / 2, y + h / 2), (w, h), angle)
-                box = cv2.boxPoints(rect)
-                box = np.int32(box)
-                cv2.drawContours(frame, [box], 0, (255, 0, 0), 2)
-                cv2.putText(roi_circle, "Robot", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-        # Contar la cantidad de robots dentro del roi_circle
-        robot_count = 0
-        if roi_circle is not None:
-            for (x, y, w, h, angle) in rectangles:
-                if x1 <= x <= x2 and y1 <= y <= y2:
-                    robot_count += 1
 
-        # Mostrar la cantidad de robots en la interfaz
-        self.distance_pixels_label.config(text=f"Distancia en píxeles: {radius} | Robots detectados: {robot_count-1}")
+        robots = self.processing_service.detect_robots(frame)
+        if robots is not None and len(robots) > 0:
+            for (x, y, w, h, conf, cls) in robots:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                label = f"Robot {conf:.2f}"
+                cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                
+                # Verificar si el robot está fuera del círculo
+                robot_center_x = x + w // 2
+                robot_center_y = y + h // 2
+                distance_to_center = ((robot_center_x - circle_x) ** 2 + (robot_center_y - circle_y) ** 2) ** 0.5
+                if distance_to_center > radius:
+                    cv2.putText(frame, "Fuera del círculo", (x, y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)

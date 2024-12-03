@@ -7,6 +7,7 @@ class CircleDetector:
         self.param2 = 30
         self.min_radius = 120
         self.max_radius = 135
+        print("CircleDetector initialized")
 
     def detect(self, image):
         # Convertir la imagen a escala de grises
