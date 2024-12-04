@@ -6,6 +6,7 @@ from PIL import Image, ImageTk
 from business.robot_detector import RobotDetector
 import cv2
 from PIL import Image, ImageDraw, ImageTk
+import random  # Import the random module
 
 class FuturisticScale(tk.Canvas):
     def __init__(self, parent, label, min_value, max_value, initial_value, row, command=None, **kwargs):
@@ -80,7 +81,11 @@ class ImageAdjustmentUI:
         self.processing_service = processing_service
         self.roi_rect = (0, 0, 100, 100)  # Example values, adjust as needed
         self.root = tk.Tk()
-        self.root.title("Eagle Eye Software")
+        self.robot_paths = {}  # Initialize robot_paths
+        self.robot_windows = {}  # Initialize robot_windows
+        self.robot_colors = {}  # Initialize robot_colors
+        self.robot_counter = 0  # Initialize robot_counter
+        self.robot_ids = {}  # Initialize robot_ids
         self.root.configure(bg="black")
 
         # Frame para la cámara
@@ -113,6 +118,26 @@ class ImageAdjustmentUI:
         # Iniciar la actualización de la ventana
         self.update_frame()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def create_robot_window(self, robot_id):
+            window = tk.Toplevel(self.root)
+            window.title(f"Recorrido del Robot {robot_id}")
+            window.configure(bg="black")
+            label = tk.Label(window, bg="black")
+            label.pack()
+            self.robot_windows[robot_id] = label
+
+    def update_robot_window(self, robot_id):
+        path_image = np.zeros((500, 500, 3), dtype=np.uint8)
+        path_image.fill(0)  # Fondo negro
+        color = self.robot_colors[robot_id]  # Obtener el color asignado al robot
+        for position in self.robot_paths[robot_id]:
+            cv2.circle(path_image, position, 3, color, -1)  # Dibujar un punto en cada posición
+        path_image = cv2.cvtColor(path_image, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(path_image)
+        image_tk = ImageTk.PhotoImage(image)
+        self.robot_windows[robot_id].config(image=image_tk)
+        self.robot_windows[robot_id].image = image_tk
 
     def update_radius(self, _):
         self.processing_service.circle_detector.min_radius = self.min_radius_scale.value
@@ -149,16 +174,44 @@ class ImageAdjustmentUI:
         robots = self.processing_service.detect_robots(frame)
         if robots is not None and len(robots) > 0:
             for (x, y, w, h, conf, cls) in robots:
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                label = f"Robot {conf:.2f}"
-                cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-                
                 # Verificar si el robot está fuera del círculo
                 robot_center_x = x + w // 2
                 robot_center_y = y + h // 2
                 distance_to_center = ((robot_center_x - circle_x) ** 2 + (robot_center_y - circle_y) ** 2) ** 0.5
                 if distance_to_center > radius:
-                    cv2.putText(frame, "Fuera del círculo", (x, y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    color = (0, 0, 255)  # Rojo
+                    cv2.putText(frame, "Fuera del circulo", (x, y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                else:
+                    color = (255, 0, 0)  # Azul
+
+                # Dibujar el rectángulo del robot
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+
+                # Asignar un ID único al robot
+                if (x, y, w, h) not in self.robot_ids:
+                    self.robot_ids[(x, y, w, h)] = self.robot_counter
+                    self.robot_counter += 1
+                robot_id = self.robot_ids[(x, y, w, h)]
+
+                #label = f"Robot {robot_id} {conf:.2f}"
+                #cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+                # Actualizar el mapa del recorrido del robot
+                robot_id = int(cls)
+                if robot_id not in self.robot_paths:
+                    self.robot_paths[robot_id] = []
+                    # Asignar un color sólido al robot y asegurarse de que sea único
+                    while True:
+                        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+                        if color not in self.robot_colors.values():
+                            self.robot_colors[robot_id] = color
+                            break
+                    self.create_robot_window(robot_id)
+                self.robot_paths[robot_id].append((robot_center_x, robot_center_y))
+
+                # Dibujar el recorrido del robot en su ventana
+                self.update_robot_window(robot_id)
+
         
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
