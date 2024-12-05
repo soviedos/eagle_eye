@@ -5,8 +5,8 @@ class CircleDetector:
     def __init__(self):
         self.param1 = 50
         self.param2 = 30
-        self.min_radius = 120
-        self.max_radius = 135
+        self.min_radius = 147
+        self.max_radius = 169
         print("CircleDetector initialized")
 
     def detect(self, image):

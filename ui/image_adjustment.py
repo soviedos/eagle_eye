@@ -160,6 +160,7 @@ class ImageAdjustmentUI:
         circles = self.processing_service.detect_circles(frame)
         global radius
         roi_circle = None  # Initialize roi_circle to ensure it is defined
+        circle_x, circle_y = None, None  # Initialize circle_x and circle_y
 
         if circles is not None and len(circles) > 0:
             for (circle_x, circle_y, radius) in circles:
@@ -177,10 +178,13 @@ class ImageAdjustmentUI:
                 # Verificar si el robot está fuera del círculo
                 robot_center_x = x + w // 2
                 robot_center_y = y + h // 2
-                distance_to_center = ((robot_center_x - circle_x) ** 2 + (robot_center_y - circle_y) ** 2) ** 0.5
-                if distance_to_center > radius:
-                    color = (0, 0, 255)  # Rojo
-                    cv2.putText(frame, "Fuera del circulo", (x, y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                if circle_x is not None and circle_y is not None:
+                    distance_to_center = ((robot_center_x - circle_x) ** 2 + (robot_center_y - circle_y) ** 2) ** 0.5
+                    if distance_to_center > radius:
+                        color = (0, 0, 255)  # Rojo
+                        cv2.putText(frame, "Fuera del círculo", (x, y + h + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    else:
+                        color = (255, 0, 0)  # Azul
                 else:
                     color = (255, 0, 0)  # Azul
 
